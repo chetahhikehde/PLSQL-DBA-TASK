@@ -1,0 +1,269 @@
+/*Step 1: Create 2 tables*/ ------------------------
+
+CREATE TABLE tab1(SLNO int,TYPE_name Varchar2(100), type_body_name Varchar2(100),PACKAGE_NAME Varchar2(100),PACKAGE_BODY_NAME VARCHAR2(100),library_name Varchar2(100),java_source_name Varchar2(100),tri_gger_name Varchar2(100),PROC_NAME VARCHAR2(100), FUN_NAME VARCHAR2(100), CODE CLOB); 
+
+CREATE TABLE TAB1_VAR (
+  SLNO                 INTEGER,
+  TYPE_NAME            VARCHAR2(100),
+  TYPE_BODY_NAME       VARCHAR2(100),
+  PACKAGE_NAME         VARCHAR2(100),
+  PACKAGE_BODY_NAME    VARCHAR2(100),
+  LIBRARY_NAME         VARCHAR2(100),
+  JAVA_SOURCE_NAME     VARCHAR2(100),
+  TRI_GGER_NAME        VARCHAR2(100),
+  PROC_NAME            VARCHAR2(100),
+  FUN_NAME             VARCHAR2(100),
+  CODE_SL_NO           INTEGER,
+  CODE                 VARCHAR2(4000)
+);
+/*Step 2: Run below script*/ -------------------------
+
+--Optimized process:(Demarit: you have to create tab1 first as we are using nested table of tab1 first thats why.)
+-- Created on 26-02-2025 by USER 
+--CREATE THE TAB1 TABLE first 
+--(CREATE TABLE tab1(SLNO int,TYPE_name Varchar2(100), type_body_name Varchar2(100),PACKAGE_NAME Varchar2(100),PACKAGE_BODY_NAME VARCHAR2(100),library_name Varchar2(100),java_source_name Varchar2(100),tri_gger_name Varchar2(100),PROC_NAME VARCHAR2(100), FUN_NAME VARCHAR2(100), CODE CLOB))
+-- then run below script--
+declare 
+  -- Local variables here
+  i integer;
+  v_pack_clob CLOB;
+  v_num int:=0;
+ --nested table
+  TYPE tab1_tab is TABLE OF tab1%rowtype; -- as table is not present in the past so we cannot use it, thats why we have to create table first.
+  tab1_nestab tab1_tab; -- :=tab1_tab();
+  v_error_count number;
+  v_error_code varchar2(100);
+  v_error_ind varchar2(200);
+begin
+  --(Explicitly you have to create the table becaue we ae using NESTED TABLE OF tab1)
+  /*
+  BEGIN
+    execute immediate 'DROP TABLE tab1';
+    EXCEPTION WHEN OTHERS THEN NULL;
+  END; --> If table is not present then no worries!.
+  execute immediate 'CREATE TABLE tab1 (SLNO int, PACKAGE_NAME Varchar2(100), PACKAGE_BODY_NAME VARCHAR2(100),PROC_NAME VARCHAR2(100), FUN_NAME VARCHAR2(100), CODE CLOB)';
+  */
+  tab1_nestab :=tab1_tab();
+  FOR I IN 
+    (SELECT distinct name,type FROM all_source where 
+    TYPE IN ('PACKAGE BODY','PACKAGE','FUNCTION','PROCEDURE','LIBRARY','TRIGGER','TYPE','TYPE BODY'/*'JAVA SOURCE'*/)
+    AND OWNER = 'SSS' and OWNER = 'SSS' --and name = 'TIC_DOCUMENTS'
+    order by TYPE
+     )
+    LOOP
+      v_num :=v_num+1; --index number of nested table
+      tab1_nestab.extend; --> very imp while using nested table, (not required in ASS ARRAY)
+      BEGIN
+        IF i.type = 'PACKAGE' THEN 
+          --v_pack_clob:= SELECT DBMS_METADATA.GET_DDL('PACKAGE', NAME, 'SSS') FROM DUAL; 
+           SELECT DBMS_METADATA.GET_DDL('PACKAGE', i.NAME, 'SSS') INTO v_pack_clob FROM DUAL; 
+        ELSIF i.type = 'PACKAGE BODY' THEN 
+          --v_pack_clob:= SELECT DBMS_METADATA.GET_DDL('PACKAGE_BODY', NAME, 'SSS') FROM DUAL;
+          SELECT DBMS_METADATA.GET_DDL('PACKAGE_BODY', i.NAME, 'SSS') INTO v_pack_clob FROM DUAL;
+        ELSIF i.type = 'FUNCTION' THEN 
+          --v_pack_clob:= SELECT DBMS_METADATA.GET_DDL('PACKAGE', NAME, 'SSS') FROM DUAL; 
+           SELECT DBMS_METADATA.GET_DDL('FUNCTION', i.NAME, 'SSS') INTO v_pack_clob FROM DUAL; 
+        ELSIF i.type = 'PROCEDURE' THEN 
+          --v_pack_clob:= SELECT DBMS_METADATA.GET_DDL('PACKAGE', NAME, 'SSS') FROM DUAL; 
+           SELECT DBMS_METADATA.GET_DDL('PROCEDURE', i.NAME, 'SSS') INTO v_pack_clob FROM DUAL; 
+        ELSIF i.type = 'LIBRARY' THEN 
+          --v_pack_clob:= SELECT DBMS_METADATA.GET_DDL('LIBRARY', NAME, 'SSS') FROM DUAL; 
+           SELECT DBMS_METADATA.GET_DDL('LIBRARY', i.NAME, 'SSS') INTO v_pack_clob FROM DUAL;
+        ELSIF i.type = 'TRIGGER' THEN 
+          --v_pack_clob:= SELECT DBMS_METADATA.GET_DDL('TRIGGER', NAME, 'SSS') FROM DUAL; 
+           SELECT DBMS_METADATA.GET_DDL('TRIGGER', i.NAME, 'SSS') INTO v_pack_clob FROM DUAL;      
+        ELSIF i.type = 'TYPE' THEN 
+          --v_pack_clob:= SELECT DBMS_METADATA.GET_DDL('TYPE', NAME, 'SSS') FROM DUAL; 
+           SELECT DBMS_METADATA.GET_DDL('TYPE', i.NAME, 'SSS') INTO v_pack_clob FROM DUAL;    
+      ELSIF i.type = 'TYPE BODY' THEN 
+          --v_pack_clob:= SELECT DBMS_METADATA.GET_DDL('TYPE BODY', NAME, 'SSS') FROM DUAL; 
+          SELECT DBMS_METADATA.GET_DDL('TYPE BODY', i.NAME, 'SSS') INTO v_pack_clob FROM DUAL;       
+      ELSIF i.type = 'JAVA SOURCE' THEN 
+          --v_pack_clob:= SELECT DBMS_METADATA.GET_DDL('JAVA SOURCE', NAME, 'SSS') FROM DUAL; --METADAT NOT SUPPORTED
+          SELECT DBMS_METADATA.GET_DDL('JAVA SOURCE', i.NAME, 'SSS') INTO v_pack_clob FROM DUAL;     
+        END IF;
+       EXCEPTION WHEN OTHERS THEN NULL;
+       END;
+      -- Initilaizing the value of nested table colums using v_num --
+      -- tab1_nestab.extend; --> very imp while using nested table, (not required in ASS ARRAY)
+      
+      tab1_nestab(v_num).slno:=v_num;
+
+      IF    i.type = 'PACKAGE' THEN
+         tab1_nestab(v_num).package_name:=i.NAME;
+      ELSIF i.type = 'PACKAGE BODY' THEN
+         tab1_nestab(v_num).package_body_name:=i.NAME;
+      ELSIF i.type = 'PROCEDURE' THEN
+         tab1_nestab(v_num).proc_name:=i.NAME;
+      ELSIF i.type = 'FUNCTION' THEN
+         tab1_nestab(v_num).fun_name:=i.NAME;
+      ELSIF i.type = 'LIBRARY' THEN
+         tab1_nestab(v_num).library_name:=i.NAME;
+      ELSIF i.type = 'TRIGGER' THEN
+         tab1_nestab(v_num).tri_gger_name:=i.NAME;
+      ELSIF i.type = 'TYPE' THEN
+         tab1_nestab(v_num).type_name:=i.NAME;
+      ELSIF i.type = 'TYPE BODY' THEN
+         tab1_nestab(v_num).type_body_name:=i.NAME;
+      ELSIF i.type = 'JAVA SOURCE' THEN
+         tab1_nestab(v_num).java_source_name:=i.NAME;                         
+      END IF;
+      
+      tab1_nestab(v_num).code:=v_pack_clob;  
+      --BELOW INSERTION IS ONE BY ONE, NOT IN IN A BULK.--
+      /*
+      IF v_pack_clob is not null then
+        BEGIN
+          INSERT INTO tab1(slno,package_name,package_body_name,proc_name, fun_name, code) 
+          VALUES
+           (v_num, 
+            CASE WHEN i.type = 'PACKAGE' THEN i.NAME ELSE 'NA' END,
+            CASE WHEN i.type = 'PACKAGE BODY' THEN i.NAME ELSE 'NA' END, 
+            CASE WHEN i.type = 'PROCEDURE' THEN i.NAME ELSE 'NA' END,
+            CASE WHEN i.type = 'FUNCTION' THEN i.NAME ELSE 'NA' END,
+            v_pack_clob  );
+           COMMIT;
+         EXCEPTION WHEN OTHERS THEN DBMS_OUTPUT.PUT_LINE('ERROR IN PACKAGE '||' '|| i.name);
+         ROLLBACK;
+         END;
+         v_num :=v_num+1;
+       END IF; 
+       */
+
+     END LOOP;
+     --NOW INSERTION USING BULK BINDING AT A SINGLE RUN(NO HOPPING B/W PLSQL and SQL Executor)--
+        --/*
+        FORALL i IN tab1_nestab.FIRST .. tab1_nestab.LAST SAVE EXCEPTIONs 
+        INSERT INTO tab1(slno,TYPE_name,type_body_name,PACKAGE_NAME,PACKAGE_BODY_NAME,library_name,java_source_name,
+                         tri_gger_name,PROC_NAME,FUN_NAME, code) 
+        VALUES
+         (tab1_nestab(i).slno,
+          tab1_nestab(i).type_name,
+          tab1_nestab(i).type_body_name,
+          tab1_nestab(i).PACKAGE_NAME,
+          tab1_nestab(i).PACKAGE_BODY_NAME,
+          tab1_nestab(i).library_name,
+          tab1_nestab(i).java_source_name,
+          tab1_nestab(i).tri_gger_name,
+          tab1_nestab(i).proc_name,
+          tab1_nestab(i).fun_name,
+          tab1_nestab(i).code );
+         COMMIT;
+         EXCEPTION WHEN OTHERS THEN --DBMS_OUTPUT.PUT_LINE('ERROR IN OBJECT '||' '|| tab1_nestab(i).code);
+          v_error_count:= sql%bulk_exceptions.count;
+          FOR j IN 1..v_error_count LOOP
+            v_error_code := sql%bulk_exceptions(j).error_code;
+            v_error_ind  := sql%bulk_exceptions(j).error_index;
+            DBMS_OUTPUT.PUT_LINE(v_error_code||'  '||v_error_ind);
+          END LOOP;
+          ROLLBACK;
+ -- */
+end; 
+
+/*Step 3: Run below script*/ -------------------------
+
+DECLARE
+  -- Target record type and nested table
+  TYPE tab1_var_tab_type IS TABLE OF tab1_var%ROWTYPE;
+  tab1_var_tab tab1_var_tab_type := tab1_var_tab_type();
+
+  -- Constants and counters
+  v_chunk_size    CONSTANT PLS_INTEGER := 4000;
+  v_code_length   PLS_INTEGER;
+  v_chunk_start   PLS_INTEGER := 1;
+  v_code_sl_no    PLS_INTEGER := 1;
+  j               PLS_INTEGER := 1;
+
+BEGIN
+  -- Loop through tab1 source records
+  FOR rec IN (
+    SELECT * FROM tab1
+  ) LOOP
+    v_code_length := DBMS_LOB.GETLENGTH(rec.code);
+
+    IF v_code_length > v_chunk_size THEN
+      v_chunk_start := 1;
+      v_code_sl_no  := 1;
+
+      WHILE v_chunk_start <= v_code_length LOOP
+        tab1_var_tab.EXTEND;
+
+        tab1_var_tab(j).slno               := rec.slno;
+        tab1_var_tab(j).type_name          := rec.type_name;
+        tab1_var_tab(j).type_body_name     := rec.type_body_name;
+        tab1_var_tab(j).package_name       := rec.package_name;
+        tab1_var_tab(j).package_body_name  := rec.package_body_name;
+        tab1_var_tab(j).library_name       := rec.library_name;
+        tab1_var_tab(j).java_source_name   := rec.java_source_name;
+        tab1_var_tab(j).tri_gger_name      := rec.tri_gger_name;
+        tab1_var_tab(j).proc_name          := rec.proc_name;
+        tab1_var_tab(j).fun_name           := rec.fun_name;
+        tab1_var_tab(j).code_sl_no         := v_code_sl_no;
+        tab1_var_tab(j).code               := DBMS_LOB.SUBSTR(rec.code, v_chunk_size, v_chunk_start);
+
+        v_chunk_start := v_chunk_start + v_chunk_size;
+        v_code_sl_no  := v_code_sl_no + 1;
+        j := j + 1;
+      END LOOP;
+
+    ELSE
+      tab1_var_tab.EXTEND;
+
+      tab1_var_tab(j).slno               := rec.slno;
+      tab1_var_tab(j).type_name          := rec.type_name;
+      tab1_var_tab(j).type_body_name     := rec.type_body_name;
+      tab1_var_tab(j).package_name       := rec.package_name;
+      tab1_var_tab(j).package_body_name  := rec.package_body_name;
+      tab1_var_tab(j).library_name       := rec.library_name;
+      tab1_var_tab(j).java_source_name   := rec.java_source_name;
+      tab1_var_tab(j).tri_gger_name      := rec.tri_gger_name;
+      tab1_var_tab(j).proc_name          := rec.proc_name;
+      tab1_var_tab(j).fun_name           := rec.fun_name;
+      tab1_var_tab(j).code_sl_no         := 1;
+      tab1_var_tab(j).code               := DBMS_LOB.SUBSTR(rec.code, v_chunk_size, 1);
+
+      j := j + 1;
+    END IF;
+  END LOOP;
+
+  -- Bulk insert into TAB1_VAR
+  FORALL i IN tab1_var_tab.FIRST .. tab1_var_tab.LAST SAVE EXCEPTIONS
+    INSERT INTO tab1_var (
+      slno, type_name, type_body_name, package_name, package_body_name,
+      library_name, java_source_name, tri_gger_name,
+      proc_name, fun_name, code_sl_no, code
+    )
+    VALUES (
+      tab1_var_tab(i).slno,
+      tab1_var_tab(i).type_name,
+      tab1_var_tab(i).type_body_name,
+      tab1_var_tab(i).package_name,
+      tab1_var_tab(i).package_body_name,
+      tab1_var_tab(i).library_name,
+      tab1_var_tab(i).java_source_name,
+      tab1_var_tab(i).tri_gger_name,
+      tab1_var_tab(i).proc_name,
+      tab1_var_tab(i).fun_name,
+      tab1_var_tab(i).code_sl_no,
+      tab1_var_tab(i).code
+    );
+
+  COMMIT;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('Bulk insert failed. Error details:');
+    FOR idx IN 1 .. SQL%BULK_EXCEPTIONS.COUNT LOOP
+      DBMS_OUTPUT.PUT_LINE(
+        'Error #' || SQL%BULK_EXCEPTIONS(idx).ERROR_CODE ||
+        ' at index ' || SQL%BULK_EXCEPTIONS(idx).ERROR_INDEX
+      );
+    END LOOP;
+    ROLLBACK;
+END;
+
+/*Step 4: Do below*/ -------------------------
+
+Export/Download all the data from tab1_var table.
+
+-------------------------------------------------------THATS IT------------------------------------------------
