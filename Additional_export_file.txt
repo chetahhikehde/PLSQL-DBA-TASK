@@ -10,7 +10,7 @@ create table TAB1_VAR
   proc_name         VARCHAR2(100),
   fun_name          VARCHAR2(100),
   code_sl_no        int,
-  code              VARCHAR2(4000)
+  code              VARCHAR2(40000)
 ) 
 */
 declare 
@@ -82,3 +82,4 @@ begin
          ROLLBACK;
   
 end;
+
